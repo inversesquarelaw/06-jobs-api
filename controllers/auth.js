@@ -1,31 +1,42 @@
 const User = require("../models/User");
 const { StatusCodes } = require("http-status-codes");
-const { BadRequestError } = require("../errors");
-const jwt = require("jsonwebtoken");
+const { BadRequestError, UnauthenticatedError } = require("../errors");
 
 const register = async (req, res) => {
-  // use destructuring to extract name, email, and password from req.body
-  /*
-  const { name, email, password } = req.body;
-
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(password, salt);
-  const tempUser = { name, email, password: hashedPassword };
-  */
-
   // we handle the salt and hash in the model using a pre-save hook
+  // we also handle the token creation in the model
   const user = await User.create({ ...req.body });
-  const token = jwt.sign({ userId: user._id, name: user.name }, "jwtSecret", {
-    expiresIn: "30d",
-  });
-
+  const token = user.createJWT(); //moved token logic to the User model
   res.status(StatusCodes.CREATED).json({ user: { name: user.name }, token });
 
   //res.send("register user");
 };
 
 const login = async (req, res) => {
-  res.send("login user");
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    throw new BadRequestError("Please provide email and password");
+  }
+
+  // find the user by email
+  const user = await User.findOne({ email });
+
+  // if email doesn't exist, throw an error
+  if (!user) {
+    throw new UnauthenticatedError("Invalid Credentials");
+  }
+
+  const isPasswordCorrect = await user.comparePassword(password);
+  if (!isPasswordCorrect) {
+    throw new UnauthenticatedError("Invalid Credentials");
+  }
+
+  // else we found the email, now we compare the password
+  const token = user.createJWT();
+  res.status(StatusCodes.OK).json({ user: { name: user.name }, token });
+
+  //res.send("login user");
 };
 
 module.exports = {
