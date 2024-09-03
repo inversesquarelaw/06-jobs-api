@@ -24,12 +24,12 @@ const login = async (req, res) => {
 
   // if email doesn't exist, throw an error
   if (!user) {
-    throw new UnauthenticatedError("Invalid Credentials");
+    throw new UnauthenticatedError("Invalid Credentials - User not found");
   }
 
   const isPasswordCorrect = await user.comparePassword(password);
   if (!isPasswordCorrect) {
-    throw new UnauthenticatedError("Invalid Credentials");
+    throw new UnauthenticatedError("Invalid Credentials - Password incorrect");
   }
 
   // else we found the email, now we compare the password
